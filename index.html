@@ -1,80 +1,23 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>AccuDent Terminal v1.0</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 450px; text-align: center; border: 1px solid #334155; }
-        h2 { color: #3b82f6; margin-bottom: 25px; }
-        .upload-box { border: 2px dashed #3b82f6; padding: 40px; border-radius: 15px; cursor: pointer; transition: 0.3s; background: #0f172a; }
-        .upload-box:hover { background: #1e293b; border-color: #60a5fa; }
-        #status { margin-top: 20px; color: #94a3b8; font-size: 14px; }
-        #result-area { margin-top: 25px; padding: 15px; background: #0f172a; border-right: 4px solid #3b82f6; border-radius: 8px; display: none; text-align: right; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>🦷 AccuDent AI Engine</h2>
-        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
-            <p id="box-text">📁 اضغط لاختيار صورة الأشعة</p>
-            <input type="file" id="fileInput" hidden accept="image/*">
-        </div>
-        <div id="status">جاهز للعمل...</div>
-        <div id="result-area">
-            <strong style="color: #3b82f6;">تقرير فحص AccuDent:</strong>
-            <p id="reportContent" style="font-size: 15px; line-height: 1.6;"></p>
-        </div>
-    </div>
-
-    <script>
-        const GITHUB_TOKEN = "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";
-        const REPO_NAME = "Accudent_index";
-        const USERNAME = "anme27684-cmd";
-
-        document.getElementById('fileInput').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            document.getElementById('status').innerText = "جاري تحويل الصورة لرابط رقمي...";
-            document.getElementById('box-text').innerText = "⏳ جاري الرفع...";
-
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const content = reader.result.split(',')[1];
-                const fileName = `xray_${Date.now()}.png`;
-
-                try {
-                    const response = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO_NAME}/contents/${fileName}`, {
-                        method: "PUT",
-                        headers: { "Authorization": `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({ message: "New Scan", content: content })
-                    });
-
-                    if (response.ok) {
-                        const rawUrl = `https://raw.githubusercontent.com/${USERNAME}/${REPO_NAME}/main/${fileName}`;
-                        document.getElementById('status').innerText = "تم الرفع! جاري إرسال البيانات لجيمناي...";
-                        // إرسال اللينك للإضافة
-                        window.postMessage({ type: "ACCUDENT_SEND_URL", url: rawUrl }, "*");
-                    } else {
-                        document.getElementById('status').innerText = "خطأ في الرفع، تأكد من التوكن.";
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            };
+<script>
+    document.getElementById('fileInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        document.getElementById('status').innerText = "جاري معالجة الصورة...";
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            // بنبعت الصورة خام للإضافة وهي تتصرف في الرفع
+            window.postMessage({ type: "ACCUDENT_SEND_IMAGE", data: base64 }, "*");
         };
+    };
 
-        // استقبال التقرير النهائي من الإضافة
-        window.addEventListener("message", (event) => {
-            if (event.data.type === "ACCUDENT_FINAL_REPORT") {
-                document.getElementById('status').innerText = "اكتمل التحليل ✅";
-                document.getElementById('result-area').style.display = 'block';
-                document.getElementById('reportContent').innerText = event.data.text;
-                document.getElementById('box-text').innerText = "📁 ارفع صورة أخرى";
-            }
-        });
-    </script>
-</body>
-</html>
+    window.addEventListener("message", (event) => {
+        if (event.data.type === "ACCUDENT_FINAL_REPORT") {
+            document.getElementById('status').innerText = "اكتمل التحليل ✅";
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('reportContent').innerText = event.data.text;
+        }
+    });
+</script>
