@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>AccuDent AI Engine</title>
+    <script async src="https://docs.opencv.org/4.5.4/opencv.js" type="text/javascript"></script>
+    
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 450px; text-align: center; border: 1px solid #334155; }
@@ -20,7 +22,7 @@
             <p id="box-text">📁 اضغط لاختيار صورة الأشعة</p>
             <input type="file" id="fileInput" hidden accept="image/*">
         </div>
-        <div id="status">جاري تحميل OpenCV...</div>
+        <div id="status">⏳ جاري تحميل محرك OpenCV...</div>
         <img id="imageCanvas" style="display:none;" />
         <div id="result-area">
             <strong style="color: #3b82f6;">تقرير فحص AccuDent:</strong>
@@ -29,36 +31,28 @@
     </div>
 
     <script>
-    const KEY = "ghp_vScPDt8LGLNWvgbX" + "9ORuVOwo8fo6vQ360Ghw";
-    const REPO = "Accudent_index";
-    const USER = "anme27684-cmd";
+        const KEY = "ghp_vScPDt8LGLNWvgbX" + "9ORuVOwo8fo6vQ360Ghw";
+        const REPO = "Accudent_index";
+        const USER = "anme27684-cmd";
 
-    document.getElementById('fileInput').onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        document.getElementById('fileInput').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        // 🛑 فحص أمان: هل OpenCV جاهزة؟
-        if (typeof cv === 'undefined') {
-            alert("⏳ مكتبة OpenCV لسه بتحمل، برجاء الانتظار ثواني وإعادة المحاولة.");
-            return;
-        }
+            if (typeof cv === 'undefined' || !cv.imread) {
+                alert("⏳ المكتبة لسه بتحمل.. استنى ثواني ودوس تاني.");
+                return;
+            }
 
-        document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي والرفع...";
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-            const imgElement = document.getElementById('imageCanvas');
-            imgElement.src = reader.result;
-
-            imgElement.onload = async () => {
-                try {
-                    // --- تحليل OpenCV للأبعاد ---
+            document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي والرفع...";
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const imgElement = document.getElementById('imageCanvas');
+                imgElement.src = reader.result;
+                imgElement.onload = async () => {
                     let src = cv.imread(imgElement);
-                    const dimensionsStr = `${src.cols}x${src.rows}px`;
-                    console.log("📏 Dimensions:", dimensionsStr);
-
-                    // --- الرفع لـ GitHub ---
+                    const dim = `${src.cols}x${src.rows}px`;
                     const content = reader.result.split(',')[1];
                     const fileName = `xray_${Date.now()}.png`;
 
@@ -70,40 +64,31 @@
 
                     if (response.ok) {
                         const rawUrl = `https://raw.githubusercontent.com/${USER}/${REPO}/main/${fileName}`;
-                        document.getElementById('status').innerHTML = "✅ تم التحليل والرفع!<br>جاري الإرسال لـ Gemini...";
-                        
-                        window.postMessage({ 
-                            type: "ACCUDENT_SEND_URL", 
-                            url: rawUrl,
-                            dimensions: dimensionsStr 
-                        }, "*");
+                        document.getElementById('status').innerHTML = "✅ تم الرفع!<br>جاري الإرسال لـ Gemini...";
+                        window.postMessage({ type: "ACCUDENT_SEND_URL", url: rawUrl, dimensions: dim }, "*");
                     }
                     src.delete();
-                } catch (err) {
-                    console.error("OpenCV Error:", err);
-                    document.getElementById('status').innerText = "❌ خطأ في تحليل الصورة.";
-                }
+                };
             };
         };
-    };
 
-    // استقبال التقارير من الإضافة
-    window.addEventListener("message", (event) => {
-        if (event.data.type === "ACCUDENT_FINAL_REPORT") {
-            document.getElementById('status').innerText = "تم التحليل بنجاح ✅";
-            document.getElementById('result-area').style.display = 'block';
-            document.getElementById('reportContent').innerText = event.data.text;
-        }
-    });
+        window.addEventListener("message", (event) => {
+            if (event.data.type === "ACCUDENT_FINAL_REPORT") {
+                document.getElementById('status').innerText = "تم التحليل بنجاح ✅";
+                document.getElementById('result-area').style.display = 'block';
+                document.getElementById('reportContent').innerText = event.data.text;
+            }
+        });
 
-    // 🔄 مراقب التحميل: بيعرفنا أول ما OpenCV تجهز
-    var cvCheck = setInterval(() => {
-        if (typeof cv !== 'undefined') {
-            document.getElementById('status').innerText = "AccuDent جاهز للعمل...";
-            console.log("✅ OpenCV is now defined and ready.");
-            clearInterval(cvCheck);
-        }
-    }, 1000);
-</script>
+        // مراقب التحميل
+        var checkCV = setInterval(() => {
+            if (typeof cv !== 'undefined' && cv.imread) {
+                document.getElementById('status').innerText = "AccuDent جاهز للعمل (OpenCV Active)";
+                clearInterval(checkCV);
+            }
+        }, 1000);
+    </script>
+</body>
+</html> </script>
 </body>
 </html>
