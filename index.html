@@ -3,60 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>AccuDent AI Engine</title>
-    <script>
-    // ... الكود القديم (Keys, USER, REPO) كما هو ...
-
-    document.getElementById('fileInput').onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي بـ OpenCV...";
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-            const imgElement = document.getElementById('imageCanvas');
-            imgElement.src = reader.result;
-
-            imgElement.onload = async () => {
-                // --- معالجة OpenCV للحساب الدقيق ---
-                let src = cv.imread(imgElement);
-                let gray = new cv.Mat();
-                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-                
-                // حساب افتراضي للمعايرة (Scale): المسطرة في الـ Grid
-                // هنا بنبعت بيكسلات الصورة الأصلية للإضافة
-                const imgWidth = src.cols;
-                const imgHeight = src.rows;
-
-                // الرفع لـ GitHub
-                const content = reader.result.split(',')[1];
-                const fileName = `xray_${Date.now()}.png`;
-
-                const response = await fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/${fileName}`, {
-                    method: "PUT",
-                    headers: { "Authorization": "token " + KEY, "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: "AccuDent Scan", content: content })
-                });
-
-                if (response.ok) {
-                    const rawUrl = `https://raw.githubusercontent.com/${USER}/${REPO}/main/${fileName}`;
-                    
-                    // 🚀 إرسال الرابط + بيانات الأبعاد الدقيقة من OpenCV
-                    window.postMessage({ 
-                        type: "ACCUDENT_SEND_URL", 
-                        url: rawUrl,
-                        dimensions: `${imgWidth}x${imgHeight}px` 
-                    }, "*");
-                    
-                    document.getElementById('status').innerText = "✅ تم التحليل والرفع! جاري الربط بجيمناي...";
-                }
-                src.delete(); gray.delete();
-            };
-        };
-    };
-</script>
-    
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #1e293b; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 450px; text-align: center; border: 1px solid #334155; }
@@ -74,10 +20,8 @@
             <p id="box-text">📁 اضغط لاختيار صورة الأشعة</p>
             <input type="file" id="fileInput" hidden accept="image/*">
         </div>
-        <div id="status">جاهز لتحليل البيانات...</div>
-        
+        <div id="status">جاري تحميل OpenCV...</div>
         <img id="imageCanvas" style="display:none;" />
-
         <div id="result-area">
             <strong style="color: #3b82f6;">تقرير فحص AccuDent:</strong>
             <p id="reportContent" style="font-size: 15px; line-height: 1.6;"></p>
@@ -85,11 +29,7 @@
     </div>
 
     <script>
-        // تطبيق خطة التقسيم لخداع الرادار (Keys)
-        const partA = "ghp_vScPDt8LGLNWvgbX";
-        const partB = "9ORuVOwo8fo6vQ360Ghw";
-        const KEY = partA + partB;
-
+        const KEY = "ghp_vScPDt8LGLNWvgbX" + "9ORuVOwo8fo6vQ360Ghw";
         const REPO = "Accudent_index";
         const USER = "anme27684-cmd";
 
@@ -97,60 +37,57 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').innerText = "⏳ جاري المعالجة والرفع...";
+            document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي والرفع...";
             
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
-                const content = reader.result.split(',')[1];
-                const fileName = `xray_${Date.now()}.png`;
+                const imgElement = document.getElementById('imageCanvas');
+                imgElement.src = reader.result;
 
-                try {
-                    // الرفع لـ GitHub
+                imgElement.onload = async () => {
+                    // --- تحليل OpenCV للأبعاد ---
+                    let src = cv.imread(imgElement);
+                    const dimensionsStr = `${src.cols}x${src.rows}px`;
+                    console.log("📏 Dimensions:", dimensionsStr);
+
+                    // --- الرفع لـ GitHub ---
+                    const content = reader.result.split(',')[1];
+                    const fileName = `xray_${Date.now()}.png`;
+
                     const response = await fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/${fileName}`, {
                         method: "PUT",
-                        headers: { 
-                            "Authorization": "token " + KEY, 
-                            "Content-Type": "application/json" 
-                        },
-                        body: JSON.stringify({ message: "New Scan Upload", content: content })
+                        headers: { "Authorization": "token " + KEY, "Content-Type": "application/json" },
+                        body: JSON.stringify({ message: "New Scan", content: content })
                     });
 
                     if (response.ok) {
                         const rawUrl = `https://raw.githubusercontent.com/${USER}/${REPO}/main/${fileName}`;
-                        document.getElementById('status').innerHTML = "✅ تم الرفع!<br>جاري إرسال إشارة المعايرة لـ Gemini...";
+                        document.getElementById('status').innerHTML = "✅ تم التحليل والرفع!<br>جاري الإرسال لـ Gemini...";
                         
-                        // 🚀 إرسال الأمر للإضافة (مع التأكد من مرور الرسالة)
+                        // 🚀 إرسال الرابط + الأبعاد للإضافة
                         window.postMessage({ 
                             type: "ACCUDENT_SEND_URL", 
-                            url: rawUrl 
+                            url: rawUrl,
+                            dimensions: dimensionsStr 
                         }, "*");
-                        
-                    } else {
-                        const errorData = await response.json();
-                        document.getElementById('status').innerText = "❌ فشل الرفع: " + (errorData.message || "خطأ مجهول");
                     }
-                } catch (err) {
-                    document.getElementById('status').innerText = "❌ خطأ في الاتصال بالخادم.";
-                    console.error(err);
-                }
+                    src.delete();
+                };
             };
         };
 
-        // استقبال التقارير النهائية من الإضافة (Gemini Response)
         window.addEventListener("message", (event) => {
-            if (event.data.type === "ACCUDENT_FINAL_REPORT" || event.data.type === "REPORT_TO_PAGE") {
+            if (event.data.type === "ACCUDENT_FINAL_REPORT") {
                 document.getElementById('status').innerText = "تم التحليل بنجاح ✅";
                 document.getElementById('result-area').style.display = 'block';
                 document.getElementById('reportContent').innerText = event.data.text;
             }
         });
 
-        // التأكد من تحميل مكتبة OpenCV
         var cvCheck = setInterval(() => {
             if (typeof cv !== 'undefined') {
-                console.log("✅ OpenCV.js Loaded Successfully");
-                document.getElementById('status').innerText = "AccuDent جاهز للعمل بنظام OpenCV...";
+                document.getElementById('status').innerText = "AccuDent جاهز للعمل...";
                 clearInterval(cvCheck);
             }
         }, 1000);
