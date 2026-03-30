@@ -29,23 +29,30 @@
     </div>
 
     <script>
-        const KEY = "ghp_vScPDt8LGLNWvgbX" + "9ORuVOwo8fo6vQ360Ghw";
-        const REPO = "Accudent_index";
-        const USER = "anme27684-cmd";
+    const KEY = "ghp_vScPDt8LGLNWvgbX" + "9ORuVOwo8fo6vQ360Ghw";
+    const REPO = "Accudent_index";
+    const USER = "anme27684-cmd";
 
-        document.getElementById('fileInput').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+    document.getElementById('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي والرفع...";
-            
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const imgElement = document.getElementById('imageCanvas');
-                imgElement.src = reader.result;
+        // 🛑 فحص أمان: هل OpenCV جاهزة؟
+        if (typeof cv === 'undefined') {
+            alert("⏳ مكتبة OpenCV لسه بتحمل، برجاء الانتظار ثواني وإعادة المحاولة.");
+            return;
+        }
 
-                imgElement.onload = async () => {
+        document.getElementById('status').innerText = "⏳ جاري التحليل الهندسي والرفع...";
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            const imgElement = document.getElementById('imageCanvas');
+            imgElement.src = reader.result;
+
+            imgElement.onload = async () => {
+                try {
                     // --- تحليل OpenCV للأبعاد ---
                     let src = cv.imread(imgElement);
                     const dimensionsStr = `${src.cols}x${src.rows}px`;
@@ -65,7 +72,6 @@
                         const rawUrl = `https://raw.githubusercontent.com/${USER}/${REPO}/main/${fileName}`;
                         document.getElementById('status').innerHTML = "✅ تم التحليل والرفع!<br>جاري الإرسال لـ Gemini...";
                         
-                        // 🚀 إرسال الرابط + الأبعاد للإضافة
                         window.postMessage({ 
                             type: "ACCUDENT_SEND_URL", 
                             url: rawUrl,
@@ -73,24 +79,31 @@
                         }, "*");
                     }
                     src.delete();
-                };
+                } catch (err) {
+                    console.error("OpenCV Error:", err);
+                    document.getElementById('status').innerText = "❌ خطأ في تحليل الصورة.";
+                }
             };
         };
+    };
 
-        window.addEventListener("message", (event) => {
-            if (event.data.type === "ACCUDENT_FINAL_REPORT") {
-                document.getElementById('status').innerText = "تم التحليل بنجاح ✅";
-                document.getElementById('result-area').style.display = 'block';
-                document.getElementById('reportContent').innerText = event.data.text;
-            }
-        });
+    // استقبال التقارير من الإضافة
+    window.addEventListener("message", (event) => {
+        if (event.data.type === "ACCUDENT_FINAL_REPORT") {
+            document.getElementById('status').innerText = "تم التحليل بنجاح ✅";
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('reportContent').innerText = event.data.text;
+        }
+    });
 
-        var cvCheck = setInterval(() => {
-            if (typeof cv !== 'undefined') {
-                document.getElementById('status').innerText = "AccuDent جاهز للعمل...";
-                clearInterval(cvCheck);
-            }
-        }, 1000);
-    </script>
+    // 🔄 مراقب التحميل: بيعرفنا أول ما OpenCV تجهز
+    var cvCheck = setInterval(() => {
+        if (typeof cv !== 'undefined') {
+            document.getElementById('status').innerText = "AccuDent جاهز للعمل...";
+            console.log("✅ OpenCV is now defined and ready.");
+            clearInterval(cvCheck);
+        }
+    }, 1000);
+</script>
 </body>
 </html>
